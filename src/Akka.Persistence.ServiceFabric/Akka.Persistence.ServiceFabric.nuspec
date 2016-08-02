@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>0.0.1.0-alpha</version>
+    <title>$title$</title>
+    <authors>Noel Anderton</authors>
+    <owners>Noel Anderton</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>$description$</description>
+    <releaseNotes>Initial version.</releaseNotes>
+    <copyright>Copyright 2016</copyright>
+    <tags>Service Fabric Actors Akka</tags>
+  </metadata>
+</package>
