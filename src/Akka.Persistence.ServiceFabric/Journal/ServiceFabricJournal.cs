@@ -126,12 +126,14 @@
             if (highest != 0L && max != 0L)
             {
                 var result = await ReadAsync(persistenceId, fromSequenceNumber, Math.Min(toSequenceNumber, highest), max);
-                //foreach (var persistentRepresentation in result)
-                //{
-                //    recoveryCallback.DynamicInvoke(persistentRepresentation);
-                //}
+                foreach (var persistentRepresentation in result)
+                {
+                    
+                    recoveryCallback.DynamicInvoke(persistentRepresentation);
+                    
+                }
 
-                result.ForEach(recoveryCallback);
+                //result.ForEach(recoveryCallback);
             }
 
             return;
@@ -243,7 +245,7 @@
 
         private Persistent ToPersistanceRepresentation(JournalEntry entry, IActorRef sender)
         {
-            return new Persistent(entry.Payload, entry.SequenceNr, entry.Manifest, entry.PersistenceId, entry.IsDeleted, sender);
+            return new Persistent(entry.Payload, entry.SequenceNr, entry.PersistenceId, entry.Manifest, entry.IsDeleted, sender);
         }
 
         public async Task<long> HighestSequenceNumberAsync(string pid)
