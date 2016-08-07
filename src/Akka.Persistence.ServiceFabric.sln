@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AkkaPersistence", "AkkaPers
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Akka.Persistence.ServiceFabric", "Akka.Persistence.ServiceFabric\Akka.Persistence.ServiceFabric.csproj", "{41BC62EE-1DD4-4313-A019-173E0BD43F42}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Akka.Persistence.ServiceFabric.Tests", "Akka.Persistence.ServiceFabric.Tests\Akka.Persistence.ServiceFabric.Tests.csproj", "{B40B1E3F-0AB9-4F76-B9CD-2ADD3E709349}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,14 @@ Global
 		{41BC62EE-1DD4-4313-A019-173E0BD43F42}.Release|Any CPU.Build.0 = Release|Any CPU
 		{41BC62EE-1DD4-4313-A019-173E0BD43F42}.Release|x64.ActiveCfg = Release|Any CPU
 		{41BC62EE-1DD4-4313-A019-173E0BD43F42}.Release|x64.Build.0 = Release|Any CPU
+		{B40B1E3F-0AB9-4F76-B9CD-2ADD3E709349}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B40B1E3F-0AB9-4F76-B9CD-2ADD3E709349}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B40B1E3F-0AB9-4F76-B9CD-2ADD3E709349}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B40B1E3F-0AB9-4F76-B9CD-2ADD3E709349}.Debug|x64.Build.0 = Debug|Any CPU
+		{B40B1E3F-0AB9-4F76-B9CD-2ADD3E709349}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B40B1E3F-0AB9-4F76-B9CD-2ADD3E709349}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B40B1E3F-0AB9-4F76-B9CD-2ADD3E709349}.Release|x64.ActiveCfg = Release|Any CPU
+		{B40B1E3F-0AB9-4F76-B9CD-2ADD3E709349}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

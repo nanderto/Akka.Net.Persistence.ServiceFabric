@@ -15,11 +15,11 @@
     /// </summary>
     public class ServiceFabricJournal : AsyncWriteJournal
     {
-        private readonly IReliableStateManager StateManager;
+        public IReliableStateManager StateManager { get; set; }
 
         public ServiceFabricJournal(IReliableStateManager stateManager)
         {
-            StateManager = stateManager;
+            this.StateManager = stateManager;
         }
 
         public ServiceFabricJournal()
@@ -32,8 +32,10 @@
         /// </summary>
         /// <param name="messages">list of messages</param>
         /// <returns></returns>
-        protected async override Task<IImmutableList<Exception>> WriteMessagesAsync(IEnumerable<AtomicWrite> messages)
+        protected override async Task<IImmutableList<Exception>> WriteMessagesAsync(IEnumerable<AtomicWrite> messages)
         {
+            ServiceEventSource.Current.Message($"Entering ServiceFabricJournal.{nameof(this.WriteMessagesAsync)}");
+
             IReliableDictionary<long, JournalEntry> messageList = null;
             IReliableDictionary<string, long> messageMetadata = null;
             long highestSequenceNumber = 0L;
@@ -104,12 +106,12 @@
         /// <param name="persistenceId">PersistenceId For this Actor</param>
         /// <param name="fromSequenceNumber">Minimum Sequence number it could be</param>
         /// <returns>THe highest Sequence Number</returns>
-        public async override Task<long> ReadHighestSequenceNrAsync(string persistenceId, long fromSequenceNumber)
+        public override async Task<long> ReadHighestSequenceNrAsync(string persistenceId, long fromSequenceNumber)
         {
             return await this.HighestSequenceNumberAsync(persistenceId);
         }
 
-        public async override Task ReplayMessagesAsync(
+        public override async Task ReplayMessagesAsync(
             IActorContext context,
             string persistenceId,
             long fromSequenceNumber,
@@ -117,10 +119,18 @@
             long max,
             Action<IPersistentRepresentation> recoveryCallback)
         {
+            ServiceEventSource.Current.Message($"Entering ServiceFabricJournal.{nameof(this.ReplayMessagesAsync)}");
+            ServiceEventSource.Current.Message($"persistenceId: {persistenceId} fromSequenceNumber: {fromSequenceNumber} toSequenceNumber: {toSequenceNumber}  max: {max}");
+
             var highest = await HighestSequenceNumberAsync(persistenceId);
             if (highest != 0L && max != 0L)
             {
                 var result = await ReadAsync(persistenceId, fromSequenceNumber, Math.Min(toSequenceNumber, highest), max);
+                //foreach (var persistentRepresentation in result)
+                //{
+                //    recoveryCallback.DynamicInvoke(persistentRepresentation);
+                //}
+
                 result.ForEach(recoveryCallback);
             }
 
@@ -133,8 +143,10 @@
         /// <param name="persistenceId"></param>
         /// <param name="toSequenceNumber"></param>
         /// <returns></returns>
-        protected async override Task DeleteMessagesToAsync(string persistenceId, long toSequenceNumber)
+        protected override async Task DeleteMessagesToAsync(string persistenceId, long toSequenceNumber)
         {
+            ServiceEventSource.Current.Message($"Entering ServiceFabricJournal.{nameof(this.DeleteMessagesToAsync)} PersistenceId: {persistenceId} toSequenceNumber: {toSequenceNumber}");
+
             var lowestSequenceNumber = 0L;
             long newLowestSequenceNumber = 0L;
             var highestSequenceNumber = await this.HighestSequenceNumberAsync(persistenceId);
@@ -157,14 +169,44 @@
                     await messageMetadata.TryAddAsync(tx, "LowestSequenceNumber", 0);
                 }
 
-                for (long i = lowestSequenceNumber; i < toSequenceNumber; i++)
+                for (long i = lowestSequenceNumber; i <= toSequenceNumber; i++)
                 {
-                    var deleted = await messages.TryRemoveAsync(tx, i);
-                    newLowestSequenceNumber = i + 1;
+                    var message = await messages.TryGetValueAsync(tx, i);
+                    if (message.HasValue)
+                    {
+                        JournalEntry newMessage = message.Value;
+                        newMessage.IsDeleted = true;
+                        var isDeleted = await messages.TryUpdateAsync(tx, i, newMessage, message.Value);
+                        if (isDeleted)
+                        {
+                            newLowestSequenceNumber = i + 1;
+                        }
+                        else
+                        {
+                            ServiceEventSource.Current.Message($"soft delete update failed for Sequence Number {i}");
+                        }
+                    }
+                    else
+                    {
+                        ServiceEventSource.Current.Message(
+                            $"soft delete update failed for attempting to receive Sequence Number {i}");
+                    }
+                    // var deleted = await messages.TryRemoveAsync(tx, i); 
                 }
 
-                await messageMetadata.TryUpdateAsync(tx, "LowestSequenceNumber", newLowestSequenceNumber, lowestSequenceNumber);
+                var updateSuceeded = await messageMetadata.TryUpdateAsync(tx, "LowestSequenceNumber", newLowestSequenceNumber, lowestSequenceNumber);
+                if (updateSuceeded)
+                {
+                    ServiceEventSource.Current.Message($"Update of metadata suceeded newLowestSequenceNumber: {newLowestSequenceNumber}");
+                }
+                else
+                {
+                    ServiceEventSource.Current.Message($"Update of metadata failed newLowestSequenceNumber: {newLowestSequenceNumber}");
+                }
+
                 await tx.CommitAsync();
+                ServiceEventSource.Current.Message($"NewLowestSequenceNumber: {newLowestSequenceNumber} PersistenceId: {persistenceId} toSequenceNumber: {toSequenceNumber}");
+
                 return;
             }
         }
@@ -172,16 +214,24 @@
         public async Task<IEnumerable<IPersistentRepresentation>> ReadAsync(string pid, long fromSequenceNumber, long toSequenceNumber, long max)
         {
             var ret = new List<IPersistentRepresentation>();
+            long processCount = 0;
+
             using (var tx = this.StateManager.CreateTransaction())
             {
                 var messages = await this.StateManager.GetOrAddAsync<IReliableDictionary<long, JournalEntry>>($"Messages_{pid}");
 
-                for (long i = fromSequenceNumber; i < toSequenceNumber; i++)
+                for (long i = fromSequenceNumber; i <= toSequenceNumber; i++)
                 {
                     var result = await messages.TryGetValueAsync(tx, i);
                     if (result.HasValue)
                     {
                         ret.Add(this.ToPersistanceRepresentation(result.Value, this.Sender));
+                    }
+
+                    ++processCount;
+                    if (processCount == max)
+                    {
+                        break;
                     }
                 }
 

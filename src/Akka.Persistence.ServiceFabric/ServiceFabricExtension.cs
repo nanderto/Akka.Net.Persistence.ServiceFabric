@@ -25,8 +25,11 @@
             var snapshotConfig = system.Settings.Config.GetConfig("akka.persistence.snapshot-store.servicefabric");
             this.SnapshotStoreSettings = new ServiceFabricSnapshotSettings(snapshotConfig);
 
-            this.StatefulServiceContext = AkkaStatefulService.ServiceContext;
-            this.StateManager = AkkaStatefulService.StatefulService.StateManager;
+            if (AkkaStatefulService.ServiceContext != null)
+            {
+                this.StatefulServiceContext = AkkaStatefulService.ServiceContext;
+                this.StateManager = AkkaStatefulService.StatefulService.StateManager;
+            }
         }
 
         /// <summary>
