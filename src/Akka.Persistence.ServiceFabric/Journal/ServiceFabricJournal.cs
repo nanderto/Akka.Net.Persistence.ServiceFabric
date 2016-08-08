@@ -126,14 +126,14 @@
             if (highest != 0L && max != 0L)
             {
                 var result = await ReadAsync(persistenceId, fromSequenceNumber, Math.Min(toSequenceNumber, highest), max);
-                foreach (var persistentRepresentation in result)
-                {
+                //foreach (var persistentRepresentation in result)
+                //{
                     
-                    recoveryCallback.DynamicInvoke(persistentRepresentation);
+                //    recoveryCallback.DynamicInvoke(persistentRepresentation);
                     
-                }
+                //}
 
-                //result.ForEach(recoveryCallback);
+                result.ForEach(recoveryCallback);
             }
 
             return;
@@ -171,7 +171,7 @@
                     await messageMetadata.TryAddAsync(tx, "LowestSequenceNumber", 0);
                 }
 
-                for (long i = lowestSequenceNumber; i <= toSequenceNumber; i++)
+                for (long i = lowestSequenceNumber; i <= toSeqNr; i++)
                 {
                     var message = await messages.TryGetValueAsync(tx, i);
                     if (message.HasValue)
