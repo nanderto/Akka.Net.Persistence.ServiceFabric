@@ -143,10 +143,12 @@
     <Compile Include="Mocks\MockReliableQueue.cs" />
     <Compile Include="Mocks\MockReliableStateManager.cs" />
     <Compile Include="Mocks\MockServiceFabricJournal.cs" />
+    <Compile Include="Mocks\MockServiceFabricSnapshotStore.cs" />
     <Compile Include="Mocks\MockStatefulService.cs" />
     <Compile Include="Mocks\MockTransaction.cs" />
     <Compile Include="ServiceFabricJournalSpec.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ServiceFabricSnapshotStoreSpec.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Akka.Persistence.ServiceFabric\Akka.Persistence.ServiceFabric.csproj">
