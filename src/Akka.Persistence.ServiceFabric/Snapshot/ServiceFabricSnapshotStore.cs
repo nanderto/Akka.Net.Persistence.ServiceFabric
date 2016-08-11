@@ -26,6 +26,7 @@
 
                 if (!(metadata.SequenceNr > 0 && metadata.SequenceNr < long.MaxValue))
                 {
+                    ServiceEventSource.Current.Message($"delete aborted {metadata.SequenceNr}");
                     tx.Abort();
                     return;
                 }             
@@ -38,26 +39,30 @@
                     {
                         if (metadata.Timestamp.Ticks == result.Timestamp)
                         {
+                            ServiceEventSource.Current.Message($"delete commited {metadata.SequenceNr}");
                             await tx.CommitAsync();
                         }
                         else
                         {
+                            ServiceEventSource.Current.Message($"delete aborted {metadata.SequenceNr}");
                             tx.Abort();
                         }
                     }
                     else
                     {
+                        ServiceEventSource.Current.Message($"delete commited {metadata.SequenceNr}");
                         await tx.CommitAsync();
                     }
                 }
                 else
                 {
+                    ServiceEventSource.Current.Message($"delete commited {metadata.SequenceNr}");
                     await tx.CommitAsync();
                 }
             }
         }
 
-        protected async override Task DeleteAsync(string persistenceId, SnapshotSelectionCriteria criteria)
+        protected override async Task DeleteAsync(string persistenceId, SnapshotSelectionCriteria criteria)
         {
             ServiceEventSource.Current.Message($"Entering ServiceFabricSnapshotStore.{nameof(this.DeleteAsync)} PersistenceId: {persistenceId} ");
             ServiceEventSource.Current.Message($"SnapshotSelectionCriteria criteria.MaxSequenceNr: {criteria.MaxSequenceNr} criteria.MaxTimeStamp: {criteria.MaxTimeStamp}");
@@ -106,9 +111,10 @@
         /// <param name="persistenceId">Persistence ID of the Actor</param>
         /// <param name="criteria">Selecton Criteria to select the snapshot</param>
         /// <returns>The selected snapshot</returns>
-        protected async override Task<SelectedSnapshot> LoadAsync(string persistenceId, SnapshotSelectionCriteria criteria)
+        protected override async Task<SelectedSnapshot> LoadAsync(string persistenceId, SnapshotSelectionCriteria criteria)
         {
             ServiceEventSource.Current.Message($"Entering ServiceFabricSnapshotStore.{nameof(this.LoadAsync)} PersistenceId: {persistenceId} ");
+            ServiceEventSource.Current.Message($"SnapshotSelectionCriteria criteria.MaxSequenceNr: {criteria.MaxSequenceNr} criteria.MaxTimeStamp: {criteria.MaxTimeStamp}");
 
             SnapshotEntry snapshot = null;
 
@@ -138,16 +144,39 @@
 
                         if (criteria.MaxTimeStamp != DateTime.MinValue && criteria.MaxTimeStamp != DateTime.MaxValue)
                         {
-                            if (snapshot.Timestamp > criteria.MaxTimeStamp.Ticks) return null;
+                            if (snapshot.Timestamp > criteria.MaxTimeStamp.Ticks) return default(SelectedSnapshot);
                         }
 
                         await tx.CommitAsync();
+
+                        ServiceEventSource.Current.Message("");
+                        ServiceEventSource.Current.Message($"Returning SeletedSnapshot snapshot.SequenceNr: {snapshot.SequenceNr} snapshot.Timestamp: { new DateTime(snapshot.Timestamp)}");
+
+
                         var selectedSnapshot = new SelectedSnapshot(new SnapshotMetadata(persistenceId, snapshot.SequenceNr, new DateTime(snapshot.Timestamp)), snapshot.Snapshot);
                         return selectedSnapshot;
                     }
                     else
                     {
-                        tx.Abort();
+                        var ret2 = await snapshots.TryGetValueAsync(tx, $"{persistenceId}_{maxSequenceNumber - 1}");
+                        if (ret2.HasValue)
+                        {
+                            snapshot = ret2.Value;
+
+                            if (criteria.MaxTimeStamp != DateTime.MinValue && criteria.MaxTimeStamp != DateTime.MaxValue)
+                            {
+                                if (snapshot.Timestamp > criteria.MaxTimeStamp.Ticks) return default(SelectedSnapshot);
+                            }
+
+                            await tx.CommitAsync();
+
+                            ServiceEventSource.Current.Message("");
+                            ServiceEventSource.Current.Message($"Returning SeletedSnapshot snapshot.SequenceNr: {snapshot.SequenceNr} snapshot.Timestamp: { new DateTime(snapshot.Timestamp)}");
+
+
+                            var selectedSnapshot = new SelectedSnapshot(new SnapshotMetadata(persistenceId, snapshot.SequenceNr, new DateTime(snapshot.Timestamp)), snapshot.Snapshot);
+                            return selectedSnapshot;
+                        }
                     }
                 }
                 else
@@ -157,7 +186,8 @@
                 }
             }
 
-            return null;
+
+            return default(SelectedSnapshot);
         }
 
         /// <summary>
@@ -191,10 +221,20 @@
                 ServiceEventSource.Current.Message($"resultCurrentHighSquenceNumber: {resultCurrentHighSquenceNumber}");
 
                 var snapshots = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, SnapshotEntry>>(metadata.PersistenceId);
-                var resultSnapshotAdd = await snapshots.GetOrAddAsync(tx, snapshotEntry.Id, ssid => snapshotEntry);
+
+                var resultSnapshotAdd = await snapshots.TryGetValueAsync(tx, snapshotEntry.Id);
+                if(resultSnapshotAdd.HasValue)
+                {
+                    var resultUpdate = await snapshots.TryUpdateAsync(tx, snapshotEntry.Id, snapshotEntry, resultSnapshotAdd.Value);
+                }
+                else
+                {
+                    var resultAdd = await snapshots.TryAddAsync(tx, snapshotEntry.Id, snapshotEntry);
+                }
+                //GetOrAddAsync(tx, snapshotEntry.Id, ssid => snapshotEntry);
 
                 ServiceEventSource.Current.Message($"resultSnapshotAdd: {resultSnapshotAdd}");
-
+                
                 await tx.CommitAsync();
                 ServiceEventSource.Current.Message($"Leaving {nameof(this.SaveAsync)} PersistenceId: {metadata.PersistenceId} SequencNumer: {metadata.SequenceNr}");
             }
