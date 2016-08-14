@@ -9,7 +9,7 @@ using Microsoft.ServiceFabric.Services.Runtime;
 
 namespace Akka.Persistence.ServiceFabric
 {
-    [EventSource(Name = "MyCompany-ServiceFabricHost-AkkaPersistence")]
+    [EventSource(Name = "Akka-ServiceFabricHost-AkkaPersistence")]
     public sealed class ServiceEventSource : EventSource
     {
         public static readonly ServiceEventSource Current = new ServiceEventSource();
