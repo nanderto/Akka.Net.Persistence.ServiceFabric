@@ -178,7 +178,7 @@ namespace AkkaPersistence
 
                 var result = await Counter.Ask(new Counter.GetCount());
                 var currentCount = result != null && int.Parse(result.ToString()) > 0 ? result.ToString() : "Value does not exist.";
-                ServiceEventSource.Current.Message($"Current Counter Value: {currentCount}");
+                ServiceEventSource.Current.Message($"Current Akka Counter Value: {currentCount}");
                 Counter.Tell("Increment");
 
                 if (counter % 5 == 0)
@@ -186,6 +186,9 @@ namespace AkkaPersistence
 
                 }
 
+                var result2 = await Counter.Ask(new Counter.GetCount());
+                var currentCount2 = result != null && int.Parse(result2.ToString()) > 0 ? result2.ToString() : "Value does not exist.";
+                ServiceEventSource.Current.Message($"Current Akka Counter Value after increment: {currentCount2}");
 
                 using (var tx = stateManager.CreateTransaction())
                 {
@@ -199,6 +202,7 @@ namespace AkkaPersistence
 
                 ServiceEventSource.Current.Message($"Current loop Counter Value: {counter}");
 
+                ServiceEventSource.Current.Message($"---------------End loop------------");
                 ++counter;
                 await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
             }

@@ -16,7 +16,7 @@
         {
             if (config == null)
             {
-                throw new ArgumentNullException("config",
+                throw new ArgumentNullException(nameof(config),
                     "Service Fabric journal settings cannot be initialized, because required HOCON section couldn't been found");
             }
         }
@@ -28,7 +28,7 @@
         {
             if (config == null)
             {
-                throw new ArgumentNullException("config",
+                throw new ArgumentNullException(nameof(config),
                     "Service Fabric snapshot settings cannot be initialized, because required HOCON section couldn't been found");
             }
         }

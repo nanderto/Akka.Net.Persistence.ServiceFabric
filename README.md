@@ -18,3 +18,11 @@ Examples:
 Load the solution and set the ServiceFabricHost as the startup project. Run the project and you should see the diagnostic events outputing a counter value. This is backed by Service Fabric. You can run the Service Fabric chaos tests and watch it as it is restored to different nodes, it does not loose events, although you will see the count fall behind as calls to increment the counter fail, as it is moved from node to node. 
 There are other samples from Akka.net that have been reimplemented in this solution.
 
+
+
+Appendix:
+
+Remember to set the Test --> Test Settings --> Default Processor Architecture --> X64
+
+Forgetting to check this setting leads to the unit tests not being discovered and its very hard to troubleshoot (this is a reminder to my self most of all).
+

@@ -40,6 +40,8 @@
             IReliableDictionary<string, long> messageMetadata = null;
             long highestSequenceNumber = 0L;
             long newHighestSequenceNumber = 0L;
+            long oldHighestSequenceNumber = 0L;
+            JournalEntry journalEntry = null;
 
             using (var tx = this.StateManager.CreateTransaction())
             {
@@ -60,6 +62,7 @@
                             if (result.HasValue)
                             {
                                 newHighestSequenceNumber = result.Value;
+                                oldHighestSequenceNumber = newHighestSequenceNumber;
                             }
                             else
                             {
@@ -72,14 +75,32 @@
                             newHighestSequenceNumber = payload.SequenceNr;
                         }
 
-                        var journalEntry = ToJournalEntry(payload);
+                        journalEntry = this.ToJournalEntry(payload);
 
 
                         var list = await messageList.TryAddAsync(tx, journalEntry.SequenceNr, journalEntry);
+                        if (!list)
+                        {
+                            ServiceEventSource.Current.Message($"Unable to add JounalEntry, JournalEntryId: {journalEntry.Id} Transaction was aborted");
+                            tx.Abort();
+
+                            IImmutableList<Exception> exceptions = new ImmutableArray<Exception>();
+                            exceptions.Add(new InvalidOperationException("Unable to add JounalEntry, JournalEntryId: {journalEntry.Id} Transaction was aborted"));
+                            return (exceptions);
+                        }
                     }
                 }
 
-                await messageMetadata.TryUpdateAsync(tx, "HighestSequenceNumber", newHighestSequenceNumber, highestSequenceNumber);
+                var metadataResult = await messageMetadata.TryUpdateAsync(tx, "HighestSequenceNumber", newHighestSequenceNumber, oldHighestSequenceNumber);
+                if (!metadataResult)
+                {
+                    ServiceEventSource.Current.Message($"Unable to update metadata about JounalEntry, JournalEntryId: {journalEntry.Id} Transaction was aborted");
+                    tx.Abort();
+
+                    IImmutableList<Exception> exceptions = new ImmutableArray<Exception>();
+                    exceptions.Add(new InvalidOperationException("Unable to update metadata about JounalEntry, JournalEntryId: {journalEntry.Id} Transaction was aborted"));
+                    return (exceptions);
+                }
 
                 await tx.CommitAsync();
             }
@@ -149,7 +170,7 @@
         {
             ServiceEventSource.Current.Message($"Entering ServiceFabricJournal.{nameof(this.DeleteMessagesToAsync)} PersistenceId: {persistenceId} toSequenceNumber: {toSequenceNumber}");
 
-            var lowestSequenceNumber = 0L;
+            var lowestSequenceNumber = 1L;
             long newLowestSequenceNumber = 0L;
             var highestSequenceNumber = await this.HighestSequenceNumberAsync(persistenceId);
             var toSeqNr = Math.Min(toSequenceNumber, highestSequenceNumber);
@@ -165,10 +186,11 @@
                 if (result.HasValue)
                 {
                     newLowestSequenceNumber = result.Value;
+                    lowestSequenceNumber = newLowestSequenceNumber;
                 }
                 else
                 {
-                    await messageMetadata.TryAddAsync(tx, "LowestSequenceNumber", 0);
+                    await messageMetadata.TryAddAsync(tx, "LowestSequenceNumber", 1);
                 }
 
                 for (long i = lowestSequenceNumber; i <= toSeqNr; i++)
@@ -190,8 +212,7 @@
                     }
                     else
                     {
-                        ServiceEventSource.Current.Message(
-                            $"soft delete update failed for attempting to receive Sequence Number {i}");
+                        ServiceEventSource.Current.Message($"soft delete update failed for attempting to receive Sequence Number {i}");
                     }
                     // var deleted = await messages.TryRemoveAsync(tx, i); 
                 }
